@@ -1,0 +1,282 @@
+Sure! Let's break down the test files so you understand how they work and what they are testing.  
+
+---
+
+# **🧪 Understanding `UsersTable.test.jsx`**
+### **What It Tests?**
+- Renders loading state before data loads
+- Fetches user data and displays it correctly
+- Shows an error message if fetching fails
+- Navigates to the user details page when a row is clicked  
+
+### **How It Works?**
+```jsx
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { BrowserRouter } from 'react-router-dom';
+import { UsersTable } from './App';
+```
+✅ `vitest` functions (`describe`, `it`, `expect`, `vi`) are imported for writing tests.  
+✅ `@testing-library/react` is used for rendering and simulating user actions.  
+✅ `BrowserRouter` is wrapped around `UsersTable` to enable navigation.  
+✅ `UsersTable` is imported from `App.jsx` (which we fixed earlier).
+
+---
+
+### **1️⃣ Mocking Fetch API**
+```jsx
+global.fetch = vi.fn();
+```
+✅ This mocks the `fetch` function globally, allowing us to control API responses.
+
+---
+
+### **2️⃣ Mocking `useNavigate` from `react-router-dom`**
+```jsx
+const mockNavigate = vi.fn();
+vi.mock('react-router-dom', async () => {
+  const actual = await vi.importActual('react-router-dom');
+  return {
+    ...actual,
+    useNavigate: () => mockNavigate,
+  };
+});
+```
+✅ This replaces the real `useNavigate` function with `mockNavigate`, so we can track if navigation is called.
+
+---
+
+### **3️⃣ `beforeEach` Hook (Reset Mocks Before Each Test)**
+```jsx
+beforeEach(() => {
+  vi.restoreAllMocks();  // Reset all mocks
+  fetch.mockClear();
+  mockNavigate.mockClear();
+});
+```
+✅ Ensures each test starts fresh without leftovers from previous tests.
+
+---
+
+### **4️⃣ Test: Displays "Loading users..." Initially**
+```jsx
+it('renders loading state initially', () => {
+  fetch.mockImplementationOnce(() => new Promise(() => {}));
+
+  render(
+    <BrowserRouter>
+      <UsersTable />
+    </BrowserRouter>
+  );
+
+  expect(screen.getByText('Loading users...')).toBeInTheDocument();
+});
+```
+✅ Mocks a fetch request that never resolves.  
+✅ Ensures the loading message appears.
+
+---
+
+### **5️⃣ Test: Displays Users After Fetch**
+```jsx
+it('renders user data after successful fetch', async () => {
+  fetch.mockResolvedValueOnce({
+    ok: true,
+    json: async () => [
+      { id: 1, name: 'John Doe', email: 'john@example.com', phone: '123-456-7890' },
+      { id: 2, name: 'Jane Smith', email: 'jane@example.com', phone: '098-765-4321' }
+    ],
+  });
+
+  render(
+    <BrowserRouter>
+      <UsersTable />
+    </BrowserRouter>
+  );
+
+  await waitFor(() => {
+    expect(screen.getByText('John Doe')).toBeInTheDocument();
+    expect(screen.getByText('Jane Smith')).toBeInTheDocument();
+  });
+});
+```
+✅ Simulates a successful API response with two users.  
+✅ Waits until the table updates and checks that user names appear.
+
+---
+
+### **6️⃣ Test: Displays Error Message on Fetch Failure**
+```jsx
+it('renders error message on fetch failure', async () => {
+  fetch.mockResolvedValueOnce({
+    ok: false,
+    json: async () => { throw new Error('Not found'); }
+  });
+
+  render(
+    <BrowserRouter>
+      <UsersTable />
+    </BrowserRouter>
+  );
+
+  await waitFor(() => {
+    expect(screen.getByText(/Error fetching users/)).toBeInTheDocument();
+  });
+});
+```
+✅ Mocks a failed API response.  
+✅ Checks if the error message is displayed.
+
+---
+
+### **7️⃣ Test: Navigates to User Details Page**
+```jsx
+it('navigates to detail page when row is clicked', async () => {
+  fetch.mockResolvedValueOnce({
+    ok: true,
+    json: async () => [{ id: 1, name: 'John Doe', email: 'john@example.com', phone: '123-456-7890' }],
+  });
+
+  render(
+    <BrowserRouter>
+      <UsersTable />
+    </BrowserRouter>
+  );
+
+  await waitFor(() => {
+    expect(screen.getByText('John Doe')).toBeInTheDocument();
+  });
+
+  fireEvent.click(screen.getByText('John Doe'));
+
+  await waitFor(() => {
+    expect(mockNavigate).toHaveBeenCalledWith('/user/1');
+  });
+});
+```
+✅ Simulates clicking on a user row.  
+✅ Checks if `mockNavigate` was called with `/user/1`.
+
+---
+
+# **🧪 Understanding `UserDetails.test.jsx`**
+### **What It Tests?**
+- Renders loading state before data loads
+- Fetches and displays user details
+- Shows an error message if fetching fails
+- Navigates back to the users table when clicking "Back to Users"
+
+### **1️⃣ Test: Displays "Loading user details..." Initially**
+```jsx
+it('renders loading state initially', () => {
+  fetch.mockImplementationOnce(() => new Promise(() => {}));
+
+  render(
+    <MemoryRouter initialEntries={['/user/1']}>
+      <Routes>
+        <Route path="/user/:id" element={<UserDetails />} />
+      </Routes>
+    </MemoryRouter>
+  );
+
+  expect(screen.getByText('Loading user details...')).toBeInTheDocument();
+});
+```
+✅ Mocks a fetch request that never resolves.  
+✅ Ensures the loading message appears.
+
+---
+
+### **2️⃣ Test: Displays User Details After Fetch**
+```jsx
+it('renders user details after successful fetch', async () => {
+  fetch.mockResolvedValueOnce({
+    ok: true,
+    json: async () => ({
+      id: 1,
+      name: 'John Doe',
+      username: 'johndoe',
+      email: 'john@example.com',
+      phone: '123-456-7890',
+      company: { name: 'ABC Corp' },
+      address: { street: '123 Main St', suite: 'Apt 4B', city: 'Anytown', zipcode: '12345' }
+    }),
+  });
+
+  render(
+    <MemoryRouter initialEntries={['/user/1']}>
+      <Routes>
+        <Route path="/user/:id" element={<UserDetails />} />
+      </Routes>
+    </MemoryRouter>
+  );
+
+  await waitFor(() => expect(screen.getByText('John Doe')).toBeInTheDocument());
+  expect(screen.getByText('johndoe')).toBeInTheDocument();
+  expect(screen.getByText('john@example.com')).toBeInTheDocument();
+  expect(screen.getByText('ABC Corp')).toBeInTheDocument();
+});
+```
+✅ Simulates an API response with user details.  
+✅ Checks if details are correctly displayed.
+
+---
+
+### **3️⃣ Test: Displays Error Message on Fetch Failure**
+```jsx
+it('renders error message on fetch failure', async () => {
+  fetch.mockResolvedValueOnce({
+    ok: false,
+    json: async () => { throw new Error('Not found'); }
+  });
+
+  render(
+    <MemoryRouter initialEntries={['/user/1']}>
+      <Routes>
+        <Route path="/user/:id" element={<UserDetails />} />
+      </Routes>
+    </MemoryRouter>
+  );
+
+  await waitFor(() => {
+    expect(screen.getByText(/Error fetching user details/)).toBeInTheDocument();
+  });
+});
+```
+✅ Mocks a failed API response.  
+✅ Checks if the error message is displayed.
+
+---
+
+### **4️⃣ Test: Navigates Back to Users Table**
+```jsx
+it('navigates back to users table when back button is clicked', async () => {
+  fetch.mockResolvedValueOnce({
+    ok: true,
+    json: async () => ({ id: 1, name: 'John Doe' }),
+  });
+
+  render(
+    <MemoryRouter initialEntries={['/user/1']}>
+      <Routes>
+        <Route path="/user/:id" element={<UserDetails />} />
+      </Routes>
+    </MemoryRouter>
+  );
+
+  await waitFor(() => expect(screen.getByText('John Doe')).toBeInTheDocument());
+
+  fireEvent.click(screen.getByText('Back to Users'));
+
+  await waitFor(() => {
+    expect(mockNavigate).toHaveBeenCalledWith('/');
+  });
+});
+```
+✅ Simulates clicking "Back to Users".  
+✅ Ensures `mockNavigate` is called.
+
+---
+
+## **🔹 Summary**
+Your tests now correctly check data fetching, UI updates, and navigation. 🚀 Let me know if you have questions! 😊
