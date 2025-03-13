@@ -2,11 +2,10 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { UserDetails } from './App';
+import axios from 'axios';
 
-// Mock global fetch API
-global.fetch = vi.fn();
+vi.mock('axios');
 
-// Mock react-router-dom's useNavigate
 const mockNavigate = vi.fn();
 vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual('react-router-dom');
@@ -34,13 +33,13 @@ describe('UserDetails Component', () => {
   };
 
   beforeEach(() => {
-    vi.restoreAllMocks();  // Reset all mocks
-    fetch.mockClear();
+    vi.restoreAllMocks();
+    axios.get.mockClear();
     mockNavigate.mockClear();
   });
 
   it('renders loading state initially', () => {
-    fetch.mockImplementationOnce(() => new Promise(() => {})); // Never resolves
+    axios.get.mockImplementationOnce(() => new Promise(() => {}));
 
     render(
       <MemoryRouter initialEntries={['/user/1']}>
@@ -54,10 +53,7 @@ describe('UserDetails Component', () => {
   });
 
   it('renders user details after successful fetch', async () => {
-    fetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => mockUser,
-    });
+    axios.get.mockResolvedValueOnce({ data: mockUser });
 
     render(
       <MemoryRouter initialEntries={['/user/1']}>
@@ -74,10 +70,7 @@ describe('UserDetails Component', () => {
   });
 
   it('renders error message on fetch failure', async () => {
-    fetch.mockResolvedValueOnce({
-      ok: false,
-      json: async () => { throw new Error('Not found'); }
-    });
+    axios.get.mockRejectedValueOnce(new Error('Not found'));
 
     render(
       <MemoryRouter initialEntries={['/user/1']}>
@@ -93,10 +86,7 @@ describe('UserDetails Component', () => {
   });
 
   it('navigates back to users table when back button is clicked', async () => {
-    fetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => mockUser,
-    });
+    axios.get.mockResolvedValueOnce({ data: mockUser });
 
     render(
       <MemoryRouter initialEntries={['/user/1']}>
@@ -107,7 +97,7 @@ describe('UserDetails Component', () => {
     );
 
     await waitFor(() => expect(screen.getByText('John Doe')).toBeInTheDocument());
-    
+
     fireEvent.click(screen.getByText('Back to Users'));
 
     await waitFor(() => {

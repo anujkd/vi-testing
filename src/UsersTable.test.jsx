@@ -2,11 +2,10 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
 import { UsersTable } from './App';
+import axios from 'axios';
 
-// Mock fetch API
-global.fetch = vi.fn();
+vi.mock('axios');
 
-// Mock navigate function
 const mockNavigate = vi.fn();
 vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual('react-router-dom');
@@ -23,13 +22,13 @@ describe('UsersTable Component', () => {
   ];
 
   beforeEach(() => {
-    vi.restoreAllMocks();  // Reset all mocks
-    fetch.mockClear();
+    vi.restoreAllMocks();
+    axios.get.mockClear();
     mockNavigate.mockClear();
   });
 
   it('renders loading state initially', () => {
-    fetch.mockImplementationOnce(() => new Promise(() => {}));
+    axios.get.mockImplementationOnce(() => new Promise(() => {}));
 
     render(
       <BrowserRouter>
@@ -41,10 +40,7 @@ describe('UsersTable Component', () => {
   });
 
   it('renders user data after successful fetch', async () => {
-    fetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => mockUsers,
-    });
+    axios.get.mockResolvedValueOnce({ data: mockUsers });
 
     render(
       <BrowserRouter>
@@ -59,10 +55,7 @@ describe('UsersTable Component', () => {
   });
 
   it('renders error message on fetch failure', async () => {
-    fetch.mockResolvedValueOnce({
-      ok: false,
-      json: async () => { throw new Error('Not found'); }
-    });
+    axios.get.mockRejectedValueOnce(new Error('Not found'));
 
     render(
       <BrowserRouter>
@@ -76,10 +69,7 @@ describe('UsersTable Component', () => {
   });
 
   it('navigates to detail page when row is clicked', async () => {
-    fetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => mockUsers,
-    });
+    axios.get.mockResolvedValueOnce({ data: mockUsers });
 
     render(
       <BrowserRouter>
