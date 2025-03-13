@@ -22,7 +22,6 @@ describe('UserDetails Component', () => {
     username: 'johndoe',
     email: 'john@example.com',
     phone: '123-456-7890',
-    website: 'johndoe.com',
     company: { name: 'ABC Corp' },
     address: {
       street: '123 Main St',
