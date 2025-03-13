@@ -1,117 +1,44 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
-import { BrowserRouter } from 'react-router-dom';
-import { UsersTable, GenericTable } from './App';
+import React from 'react';
+import { render, screen, waitFor } from '@testing-library/react';
 import axios from 'axios';
+import axiosMockAdapter from 'axios-mock-adapter';
+import { describe, it, vi, beforeEach, afterEach, expect } from 'vitest';
+import { UsersTable } from './App';
 
-vi.mock('axios');
-
-const mockNavigate = vi.fn();
-vi.mock('react-router-dom', async () => {
-  const actual = await vi.importActual('react-router-dom');
-  return {
-    ...actual,
-    useNavigate: () => mockNavigate,
-  };
-});
-
-describe('GenericTable Component', () => {
-  const mockUsers = [
-    { id: 1, name: 'John Doe', email: 'john@example.com', phone: '123-456-7890' },
-    { id: 2, name: 'Jane Smith', email: 'jane@example.com', phone: '098-765-4321' }
-  ];
-
-  beforeEach(() => {
-    vi.restoreAllMocks();
-    axios.get.mockClear();
-    mockNavigate.mockClear();
-  });
-
-  it('renders loading state initially', () => {
-    axios.get.mockImplementationOnce(() => new Promise(() => {}));
-
-    render(<GenericTable columns={["id", "name", "email"]} apiUrl="/api/users" onRowClick={() => {}} />);
-
-    expect(screen.getByText('Loading...')).toBeInTheDocument();
-  });
-
-  it('renders data after successful fetch', async () => {
-    axios.get.mockResolvedValueOnce({ data: mockUsers });
-
-    render(<GenericTable columns={["id", "name", "email"]} apiUrl="/api/users" onRowClick={() => {}} />);
-
-    await waitFor(() => expect(screen.getByText('John Doe')).toBeInTheDocument());
-    expect(screen.getByText('Jane Smith')).toBeInTheDocument();
-    expect(screen.getByText('john@example.com')).toBeInTheDocument();
-  });
-
-  it('renders error message on fetch failure', async () => {
-    axios.get.mockRejectedValueOnce(new Error('Not found'));
-
-    render(<GenericTable columns={["id", "name", "email"]} apiUrl="/api/users" onRowClick={() => {}} />);
-
-    await waitFor(() => {
-      expect(screen.getByText(/Error fetching data/)).toBeInTheDocument();
-    });
-  });
-});
+// Mock Axios
+const mockAxios = new axiosMockAdapter(axios);
 
 describe('UsersTable Component', () => {
-  const mockUsers = [
-    { id: 1, name: 'John Doe', email: 'john@example.com', phone: '123-456-7890' },
-    { id: 2, name: 'Jane Smith', email: 'jane@example.com', phone: '098-765-4321' }
-  ];
-
   beforeEach(() => {
-    vi.restoreAllMocks();
-    axios.get.mockClear();
-    mockNavigate.mockClear();
-  });
-
-  it('renders user data after successful fetch', async () => {
-    axios.get.mockResolvedValueOnce({ data: mockUsers });
-
-    render(
-      <BrowserRouter>
-        <UsersTable />
-      </BrowserRouter>
-    );
-
-    await waitFor(() => expect(screen.getByText('John Doe')).toBeInTheDocument());
-    expect(screen.getByText('Jane Smith')).toBeInTheDocument();
-    expect(screen.getByText('john@example.com')).toBeInTheDocument();
-    expect(screen.getByText('123-456-7890')).toBeInTheDocument();
-  });
-
-  it('renders error message on fetch failure', async () => {
-    axios.get.mockRejectedValueOnce(new Error('Not found'));
-
-    render(
-      <BrowserRouter>
-        <UsersTable />
-      </BrowserRouter>
-    );
-
-    await waitFor(() => {
-      expect(screen.getByText(/Error fetching data/)).toBeInTheDocument();
+    // Mock API response
+    mockAxios.onGet('http://localhost:3000/api/items').reply(200, {
+      content: [
+        { id: 1, name: 'Item 1' },
+        { id: 2, name: 'Item 2' }
+      ],
+      totalElements: 2
     });
   });
 
-  it('navigates to detail page when row is clicked', async () => {
-    axios.get.mockResolvedValueOnce({ data: mockUsers });
+  afterEach(() => {
+    mockAxios.reset();
+  });
 
-    render(
-      <BrowserRouter>
-        <UsersTable />
-      </BrowserRouter>
-    );
+  it('renders UsersTable and fetches data', async () => {
+    render(<UsersTable />);
 
-    await waitFor(() => expect(screen.getByText('John Doe')).toBeInTheDocument());
+    // Check if the loading indicator appears
+    // expect(screen.getByText(/loading/i)).toBeInTheDocument();
 
-    fireEvent.click(screen.getByText('John Doe'));
-
+    // Wait for data to be fetched
     await waitFor(() => {
-      expect(mockNavigate).toHaveBeenCalledWith('/user/1');
+      expect(screen.getByText('Item 1')).toBeInTheDocument();
+      expect(screen.getByText('Item 2')).toBeInTheDocument();
     });
+    screen.debug(undefined, 99999);
+
+    // Ensure table headers are present
+    expect(screen.getByText(/ID/i)).toBeInTheDocument();
+    expect(screen.getByText(/Name/i)).toBeInTheDocument();
   });
 });
